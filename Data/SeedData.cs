@@ -11,45 +11,45 @@ public static class SeedData
     {
         using var scope = app.ApplicationServices.CreateScope();
 
-        var database = scope.ServiceProvider.GetRequiredService<IMongoDatabase>();
+        var context = scope.ServiceProvider.GetRequiredService<QuotesDbContext>();
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
-        InitPopulationDB(database, configuration);
+        InitPopulationDB(context, configuration);
     }
 
-    private static void InitPopulationDB(IMongoDatabase database, IConfiguration configuration)
+    private static void InitPopulationDB(QuotesDbContext context, IConfiguration configuration)
     {
         string seedDataPath = configuration["Paths:SeedData"] ?? "C:\\rbac\\seed";
 
         // Permissions
-        var permissions = database.GetCollection<Permission>("permissions");
-        if (permissions.CountDocuments(FilterDefinition<Permission>.Empty) == 0)
+        if (!context.Permissions.Any())
         {
             Console.WriteLine("--> Seeding permissions...");
-            var docs = LoadFromJson<Permission>(Path.Combine(seedDataPath, "permissions.json"));
-            permissions.InsertMany(docs);
+            var docs = LoadFromJson<Permission>(Path.Combine(seedDataPath, $"{CollectionNames.Permissions}.json"));
+            context.Permissions.AddRange(docs);
+            context.SaveChanges();
         }
 
         // Roles
-        var roles = database.GetCollection<Role>("roles");
-        if (roles.CountDocuments(FilterDefinition<Role>.Empty) == 0)
+        if (!context.Roles.Any())
         {
             Console.WriteLine("--> Seeding roles...");
-            var docs = LoadFromJson<Role>(Path.Combine(seedDataPath, "roles.json"));
-            roles.InsertMany(docs);
+            var docs = LoadFromJson<Role>(Path.Combine(seedDataPath, $"{CollectionNames.Roles}.json"));
+            context.Roles.AddRange(docs);
+            context.SaveChanges();
         }
 
         // Menu items
-        var menuItems = database.GetCollection<MenuItem>("menu_items");
-        if (menuItems.CountDocuments(FilterDefinition<MenuItem>.Empty) == 0)
+        if (!context.MenuItems.Any())
         {
             Console.WriteLine("--> Seeding menu items...");
-            var docs = LoadFromJson<MenuItem>(Path.Combine(seedDataPath, "menu_items.json"));
-            menuItems.InsertMany(docs);
+            var docs = LoadFromJson<MenuItem>(Path.Combine(seedDataPath, $"{CollectionNames.Menuitems}.json"));
+            context.MenuItems.AddRange(docs);
+            context.SaveChanges();
         }
     }
 
-    private static IEnumerable<T>? LoadFromJson<T>(string filename)
+    private static IEnumerable<T> LoadFromJson<T>(string filename)
     {
         var options = new JsonSerializerOptions()
         {
@@ -59,6 +59,6 @@ public static class SeedData
 
         var json = File.ReadAllText(filename);
         var docs = JsonSerializer.Deserialize<IEnumerable<T>>(json, options);
-        return docs;
+        return docs ?? [];
     }
 }
