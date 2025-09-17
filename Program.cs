@@ -1,15 +1,19 @@
 using MongoDB.Driver;
 using RbacApi.Data;
+using RbacApi.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-var mongoConn = builder.Configuration.GetConnectionString("QuotesDB") ?? "mongo:db//localhost:27017";
-var mongoClient = new MongoClient(mongoConn);
-var mongoDb = mongoClient.GetDatabase(builder.Configuration.GetValue<string>("MongoDbName") ?? "quotes");
-builder.Services.AddSingleton(mongoDb);
+builder.Services
+    .AddCustomOptions(builder.Configuration)
+    .AddBearerAuthenticationScheme(builder.Configuration)
+    .AddMongoDatabase(builder.Configuration)
+    .AddInfrastructure()
+    .AddApplicationServices();
 
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -23,6 +27,11 @@ if (app.Environment.IsDevelopment())
 }
 
 //app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
 
 SeedData.Execute(app);
 app.Run();
