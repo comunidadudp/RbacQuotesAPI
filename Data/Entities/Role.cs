@@ -11,8 +11,9 @@ public class Role
     [BsonRepresentation(BsonType.String)]
     public RoleType Id { get; set; }
 
-    [BsonElement("Name")]
+    [BsonElement("name")]
     public string Name { get; set; } = default!;
 
+    [BsonElement("permissions")]
     public List<string> Permissions { get; set; } = [];
 }
