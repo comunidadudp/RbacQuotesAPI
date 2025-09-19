@@ -11,41 +11,37 @@ public static class SeedData
     {
         using var scope = app.ApplicationServices.CreateScope();
 
-        var context = scope.ServiceProvider.GetRequiredService<QuotesDbContext>();
+        var collections = scope.ServiceProvider.GetRequiredService<CollectionsProvider>();
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-
-        InitPopulationDB(context, configuration);
+        InitPopulationDB(collections, configuration);
     }
 
-    private static void InitPopulationDB(QuotesDbContext context, IConfiguration configuration)
+    private static void InitPopulationDB(CollectionsProvider collections, IConfiguration configuration)
     {
         string seedDataPath = configuration["Paths:SeedData"] ?? "C:\\rbac\\seed";
 
         // Permissions
-        if (!context.Permissions.Any())
+        if (collections.Permissions.CountDocuments(FilterDefinition<Permission>.Empty) == 0)
         {
             Console.WriteLine("--> Seeding permissions...");
             var docs = LoadFromJson<Permission>(Path.Combine(seedDataPath, $"{CollectionNames.Permissions}.json"));
-            context.Permissions.AddRange(docs);
-            context.SaveChanges();
+            collections.Permissions.InsertMany(docs);
         }
 
         // Roles
-        if (!context.Roles.Any())
+        if (collections.Roles.CountDocuments(FilterDefinition<Role>.Empty) == 0)
         {
             Console.WriteLine("--> Seeding roles...");
             var docs = LoadFromJson<Role>(Path.Combine(seedDataPath, $"{CollectionNames.Roles}.json"));
-            context.Roles.AddRange(docs);
-            context.SaveChanges();
+            collections.Roles.InsertMany(docs);
         }
 
         // Menu items
-        if (!context.MenuItems.Any())
+        if (collections.MenuItems.CountDocuments(FilterDefinition<MenuItem>.Empty) == 0)
         {
             Console.WriteLine("--> Seeding menu items...");
             var docs = LoadFromJson<MenuItem>(Path.Combine(seedDataPath, $"{CollectionNames.Menuitems}.json"));
-            context.MenuItems.AddRange(docs);
-            context.SaveChanges();
+            collections.MenuItems.InsertMany(docs);
         }
     }
 
