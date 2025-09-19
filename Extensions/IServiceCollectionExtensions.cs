@@ -1,7 +1,9 @@
+using System.Reflection;
 using System.Text;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MongoDB.Driver;
 using RbacApi.Data;
 using RbacApi.Infrastructure.Auth;
 using RbacApi.Infrastructure.Interfaces;
@@ -22,10 +24,10 @@ public static class IServiceCollectionExtensions
     {
         var mongoConnectionString = configuration.GetConnectionString("QuotesDB") ?? "mongo:db//localhost:27017";
         var mongoDbName = configuration.GetValue<string>("MongoDbName") ?? "quotes";
-        services.AddDbContext<QuotesDbContext>(options =>
-        {
-            options.UseMongoDB(mongoConnectionString, mongoDbName);
-        });
+        var client = new MongoClient(mongoConnectionString);
+
+        services.AddSingleton(client.GetDatabase(mongoDbName));
+        services.AddSingleton<CollectionsProvider>();
 
         return services;
     }
@@ -60,6 +62,7 @@ public static class IServiceCollectionExtensions
 
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
+        services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
         services.AddSingleton<ITokenService, BearerTokenService>();
         return services;
     }
@@ -67,6 +70,8 @@ public static class IServiceCollectionExtensions
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IMenuService, MenuService>();
         return services;
     }
 }
