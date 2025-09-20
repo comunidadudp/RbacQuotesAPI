@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using RbacApi.DTOs;
+using RbacApi.Filters;
 using RbacApi.Responses;
 using RbacApi.Services.Interfaces;
 
@@ -13,6 +14,7 @@ public class AuthController(IAuthService authService) : ControllerBase
 
 
     [HttpPost("register")]
+    [Audit("auth.register")]
     public async Task<ApiResponseBase> Register([FromBody] RegisterRequest request)
     {
         var response = await _authService.RegisterAsync(request);
@@ -21,6 +23,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     }
 
     [HttpPost("login")]
+    [Audit("auth.login")]
     public async Task<ApiResponseBase> Login([FromBody] LoginRequest request)
     {
         var response = await _authService.LoginAsync(request);
@@ -29,6 +32,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     }
 
     [HttpPost("refresh")]
+    [Audit("auth.refresh")]
     public async Task<ApiResponseBase> Refresh([FromBody] RefreshRequest request)
     {
         var response = await _authService.RefreshAsync(request);
@@ -37,6 +41,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     }
 
     [HttpPost("revoke")]
+    [Audit("auth.revoke")]
     public async Task<ApiResponseBase> Revoke([FromBody] RefreshRequest request)
     {
         var response = await _authService.RevokeRefreshTokenAsync(request);

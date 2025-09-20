@@ -7,6 +7,7 @@ using MongoDB.Driver;
 using RbacApi.Data;
 using RbacApi.Infrastructure.Auth;
 using RbacApi.Infrastructure.Interfaces;
+using RbacApi.Infrastructure.Services;
 using RbacApi.Services;
 using RbacApi.Services.Interfaces;
 
@@ -64,6 +65,10 @@ public static class IServiceCollectionExtensions
     {
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
         services.AddSingleton<ITokenService, BearerTokenService>();
+
+        services.AddSingleton<IAuditQueue, AuditQueue>();
+        services.AddHostedService<AuditWriterBackgroundService>();
+
         return services;
     }
 

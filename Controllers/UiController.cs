@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RbacApi.DTOs;
+using RbacApi.Filters;
 using RbacApi.Responses;
 using RbacApi.Services.Interfaces;
 
@@ -21,6 +22,7 @@ namespace RbacApi.Controllers
 
 
         [HttpGet("menu")]
+        [Audit("ui.menu")]
         public async Task<ApiResponse<IEnumerable<MenuItemDTO>>> GetMenu()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

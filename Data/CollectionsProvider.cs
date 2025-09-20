@@ -5,8 +5,12 @@ namespace RbacApi.Data;
 
 public class CollectionsProvider(IMongoDatabase database)
 {
+
+   public IMongoCollection<AuditLog> AuditLogs
+      => database.GetCollection<AuditLog>(CollectionNames.AuditLogs);
+      
     public IMongoCollection<MenuItem> MenuItems
-        => database.GetCollection<MenuItem>(CollectionNames.Menuitems);
+     => database.GetCollection<MenuItem>(CollectionNames.Menuitems);
 
     public IMongoCollection<Permission> Permissions
        => database.GetCollection<Permission>(CollectionNames.Permissions);

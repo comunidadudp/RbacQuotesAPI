@@ -1,6 +1,7 @@
 using MongoDB.Driver;
 using RbacApi.Data;
 using RbacApi.Extensions;
+using RbacApi.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,7 +31,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseMiddleware<AuditMiddleware>();
 app.MapControllers();
 
 SeedData.Execute(app);
