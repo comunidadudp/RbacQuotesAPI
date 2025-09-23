@@ -2,12 +2,15 @@ using System.Reflection;
 using System.Text;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
 using RbacApi.Data;
+using RbacApi.Handlers;
 using RbacApi.Infrastructure.Auth;
 using RbacApi.Infrastructure.Interfaces;
 using RbacApi.Infrastructure.Services;
+using RbacApi.Providers;
 using RbacApi.Services;
 using RbacApi.Services.Interfaces;
 
@@ -61,6 +64,15 @@ public static class IServiceCollectionExtensions
         return services;
     }
 
+    public static IServiceCollection AddCustomAuthorization(this IServiceCollection services)
+    {
+        services.AddMemoryCache();
+        services.AddSingleton<IAuthorizationHandler, PermissionHandler>();
+        services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+        services.AddAuthorization();
+        return services;    
+    }
+
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
@@ -77,6 +89,8 @@ public static class IServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IMenuService, MenuService>();
+        services.AddScoped<IProductService, ProductService>();
+        services.AddSingleton<IPermissionService, PermissionService>();
         return services;
     }
 }
