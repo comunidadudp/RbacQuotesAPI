@@ -14,9 +14,12 @@ public class CollectionsProvider(IMongoDatabase database)
 
     public IMongoCollection<Permission> Permissions
        => database.GetCollection<Permission>(CollectionNames.Permissions);
+       
+   public IMongoCollection<Product> Products
+       => database.GetCollection<Product>(CollectionNames.Products);
 
     public IMongoCollection<RefreshToken> RefreshTokens
-       => database.GetCollection<RefreshToken>(CollectionNames.RefreshTokens);
+     => database.GetCollection<RefreshToken>(CollectionNames.RefreshTokens);
 
     public IMongoCollection<Role> Roles
        => database.GetCollection<Role>(CollectionNames.Roles);
