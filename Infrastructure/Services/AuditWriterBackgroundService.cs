@@ -41,11 +41,13 @@ public class AuditWriterBackgroundService : BackgroundService
                 while (sw.Elapsed < _flushInterval && buffer.Count < _batchSize && reader.TryRead(out var item))
                 {
                     buffer.Add(item);
+                    _logger.LogInformation($"Added to buffer {item.CorrelationId}");
                 }
 
                 if (buffer.Count > 0)
                 {
                     await _collection.InsertManyAsync(buffer, cancellationToken: stoppingToken);
+                    _logger.LogInformation($"--> Send {buffer.Count} to database");
                     buffer.Clear();
                 }
             }

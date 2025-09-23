@@ -7,9 +7,11 @@ namespace RbacApi.Infrastructure.Services;
 public class AuditQueue : IAuditQueue, IDisposable
 {
     private readonly Channel<AuditLog> _channel;
+    private readonly ILogger<AuditQueue> _logger;
 
-    public AuditQueue(int capacity = 1000)
+    public AuditQueue(ILogger<AuditQueue> logger,int capacity = 1000)
     {
+        _logger = logger;
         var options = new BoundedChannelOptions(capacity)
         {
             FullMode = BoundedChannelFullMode.DropOldest
@@ -26,6 +28,7 @@ public class AuditQueue : IAuditQueue, IDisposable
         try
         {
             await _channel.Writer.WriteAsync(log);
+            _logger.LogInformation($"--> Added to queue '{log.CorrelationId}'");
         }
         catch
         {
