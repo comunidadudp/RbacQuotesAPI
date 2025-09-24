@@ -19,9 +19,18 @@ namespace RbacApi.Controllers
 
         [HttpPost("create")]
         [Authorize(Policy = "products:manage")]
-        public async Task<ApiResponseBase> Create([FromBody] CreateProductRequest request)
+        public async Task<ApiResponseBase> Create([FromForm] CreateProductRequest request)
         {
             var response = await _productService.CreateAsync(request);
+            HttpContext.Response.StatusCode = response.Status;
+            return response;
+        }
+
+        [HttpGet("{id}")]
+        [Authorize(Policy = "products:manage")]
+        public async Task<ApiResponseBase> GetById(string id)
+        {
+            var response = await _productService.GetByIdAsync(id);
             HttpContext.Response.StatusCode = response.Status;
             return response;
         }
