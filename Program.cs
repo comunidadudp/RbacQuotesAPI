@@ -11,7 +11,7 @@ builder.Services
     .AddCustomOptions(builder.Configuration)
     .AddBearerAuthenticationScheme(builder.Configuration)
     .AddMongoDatabase(builder.Configuration)
-    .AddInfrastructure()
+    .AddInfrastructure(builder.Configuration)
     .AddCustomAuthorization()
     .AddApplicationServices();
 

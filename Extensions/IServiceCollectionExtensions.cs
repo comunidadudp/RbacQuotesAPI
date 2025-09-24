@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text;
+using Amazon.S3;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -10,6 +11,7 @@ using RbacApi.Handlers;
 using RbacApi.Infrastructure.Auth;
 using RbacApi.Infrastructure.Interfaces;
 using RbacApi.Infrastructure.Services;
+using RbacApi.Infrastructure.Storage.AWS;
 using RbacApi.Providers;
 using RbacApi.Services;
 using RbacApi.Services.Interfaces;
@@ -21,6 +23,7 @@ public static class IServiceCollectionExtensions
     public static IServiceCollection AddCustomOptions(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<JwtConfiguration>(configuration.GetSection(nameof(JwtConfiguration)));
+        services.Configure<S3BucketOptions>(configuration.GetSection(nameof(S3BucketOptions)));
         return services;
     }
 
@@ -73,13 +76,18 @@ public static class IServiceCollectionExtensions
         return services;    
     }
 
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
         services.AddSingleton<ITokenService, BearerTokenService>();
 
         services.AddSingleton<IAuditQueue, AuditQueue>();
         services.AddHostedService<AuditWriterBackgroundService>();
+
+        services.AddDefaultAWSOptions(configuration.GetAWSOptions());
+        services.AddAWSService<IAmazonS3>();
+
+        services.AddSingleton<IStorageService, S3StorageService>();
 
         return services;
     }
