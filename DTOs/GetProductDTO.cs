@@ -2,9 +2,19 @@ namespace RbacApi.DTOs;
 
 public record GetProductDTO(
     string Id,
-    string Code,
+    string SKU,
     string Name,
-    string Description,
+    string Slug,
+    string Category,
+    string Subcategory,
+    string ShortDescription,
+    string? Description,
     decimal BasePrice,
-    string ImageUrl
-);
+    string Currency,
+    string ThumbnailUrl,
+    List<string>? Tags,
+    bool IsActive
+)
+{
+    public string ThumbnailUrl { get; set; } = ThumbnailUrl;
+}
