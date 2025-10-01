@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using Amazon.S3;
 using FluentValidation;
+using Mapster;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
@@ -12,6 +13,7 @@ using RbacApi.Infrastructure.Auth;
 using RbacApi.Infrastructure.Interfaces;
 using RbacApi.Infrastructure.Services;
 using RbacApi.Infrastructure.Storage.AWS;
+using RbacApi.Mapping;
 using RbacApi.Providers;
 using RbacApi.Services;
 using RbacApi.Services.Interfaces;
@@ -73,7 +75,7 @@ public static class IServiceCollectionExtensions
         services.AddSingleton<IAuthorizationHandler, PermissionHandler>();
         services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
         services.AddAuthorization();
-        return services;    
+        return services;
     }
 
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
@@ -88,6 +90,10 @@ public static class IServiceCollectionExtensions
         services.AddAWSService<IAmazonS3>();
 
         services.AddSingleton<IStorageService, S3StorageService>();
+
+        // Mapster DI
+        services.AddMapster();
+        TypeAdapterConfig.GlobalSettings.Scan(typeof(ProductMappingConfig).Assembly);
 
         return services;
     }
