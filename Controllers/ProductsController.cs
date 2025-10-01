@@ -26,11 +26,29 @@ namespace RbacApi.Controllers
             return response;
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("id/{id}")]
         [Authorize(Policy = "products:manage")]
         public async Task<ApiResponseBase> GetById(string id)
         {
             var response = await _productService.GetByIdAsync(id);
+            HttpContext.Response.StatusCode = response.Status;
+            return response;
+        }
+
+        [HttpGet("slug/{id}")]
+        [Authorize(Policy = "products:manage")]
+        public async Task<ApiResponseBase> GetBySlug(string id)
+        {
+            var response = await _productService.GetBySlugAsync(id);
+            HttpContext.Response.StatusCode = response.Status;
+            return response;
+        }
+
+        [HttpGet]
+        [Authorize(Policy = "products:manage")]
+        public async Task<ApiResponseBase> GetAll()
+        {
+            var response = await _productService.GetAllAsync();
             HttpContext.Response.StatusCode = response.Status;
             return response;
         }
