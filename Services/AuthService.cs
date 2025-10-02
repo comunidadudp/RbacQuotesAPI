@@ -4,6 +4,7 @@ using MongoDB.Driver;
 using RbacApi.Data;
 using RbacApi.Data.Entities;
 using RbacApi.DTOs;
+using RbacApi.Extensions;
 using RbacApi.Infrastructure.Auth;
 using RbacApi.Infrastructure.Interfaces;
 using RbacApi.Infrastructure.Validators;
@@ -19,7 +20,8 @@ public sealed class AuthService(
     IUserService userService,
     LoginRequestValidator loginValidator,
     RegisterRequestValidator registerValidator,
-    RefreshRequestValidator refreshValidator) : IAuthService
+    RefreshRequestValidator refreshValidator,
+    IHttpContextAccessor httpContextAccessor) : IAuthService
 
 {
     private readonly CollectionsProvider _collections = collections;
@@ -29,6 +31,8 @@ public sealed class AuthService(
     private readonly LoginRequestValidator _loginValidator = loginValidator;
     private readonly RegisterRequestValidator _registerValidator = registerValidator;
     private readonly RefreshRequestValidator _refreshValidator = refreshValidator;
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+
 
 
     public async Task<ApiResponseBase> LoginAsync(LoginRequest request)
@@ -69,6 +73,26 @@ public sealed class AuthService(
             var updateRevoke = Builders<RefreshToken>.Update
                 .Set(t => t.Revoked, true)
                 .Set(t => t.ReplacedByToken, $"revoked_due_to_reuse_{DateTime.UtcNow.Ticks}");
+
+            _httpContextAccessor.AddAuditExtraItems([
+                new("entityId", $"{stored.Id}"),
+                new("entityType", "RefreshToken")
+            ]);
+
+            _httpContextAccessor.AddAuditChangeItems([
+                new AuditChange
+                {
+                    Field = nameof(RefreshToken.Revoked),
+                    Before = $"{stored.Revoked}",
+                    After = $"{true}"
+                },
+                 new AuditChange
+                {
+                    Field = nameof(RefreshToken.ReplacedByToken),
+                    Before = stored.ReplacedByToken,
+                    After = $"revoked_due_to_reuse_{DateTime.UtcNow.Ticks}"
+                }
+            ]);
 
             await _collections.RefreshTokens.UpdateManyAsync(filterActive, updateRevoke);
 

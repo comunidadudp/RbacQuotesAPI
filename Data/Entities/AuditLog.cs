@@ -59,6 +59,10 @@ public class AuditLog
     [BsonElement("details")]
     public AuditDetail? Details { get; set; }
 
+    [BsonElement("changes")]
+    [BsonIgnoreIfNull]
+    public List<AuditChange>? Changes { get; set; }
+
     [BsonElement("tags")]
     public List<string>? Tags { get; set; }
 

@@ -130,6 +130,13 @@ public class AuditMiddleware
                     log.Metadata[kv.Key] = kv.Value ?? "NULL";
             }
 
+            if (context.Items.TryGetValue("AuditChanges", out var changeObj) && changeObj is Dictionary<string, object?> changeDict)
+            {
+                log.Changes ??= [];
+                foreach (var kv in changeDict)
+                    log.Changes.Add((AuditChange)kv.Value ?? new());
+            }
+
             try
             {
                 await _queue.EnqueueAsync(log);
