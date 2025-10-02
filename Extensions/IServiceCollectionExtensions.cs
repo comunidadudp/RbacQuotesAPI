@@ -26,6 +26,7 @@ public static class IServiceCollectionExtensions
     {
         services.Configure<JwtConfiguration>(configuration.GetSection(nameof(JwtConfiguration)));
         services.Configure<S3BucketOptions>(configuration.GetSection(nameof(S3BucketOptions)));
+        services.Configure<CloudFrontConfig>(configuration.GetSection(nameof(CloudFrontConfig)));
         return services;
     }
 
@@ -80,6 +81,8 @@ public static class IServiceCollectionExtensions
 
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddHttpContextAccessor();
+
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
         services.AddSingleton<ITokenService, BearerTokenService>();
 
@@ -90,6 +93,7 @@ public static class IServiceCollectionExtensions
         services.AddAWSService<IAmazonS3>();
 
         services.AddSingleton<IStorageService, S3StorageService>();
+        services.AddSingleton<ISigner, CloudFrontUrlSigner>();
 
         // Mapster DI
         services.AddMapster();

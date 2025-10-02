@@ -16,12 +16,18 @@ public class ProductService : IProductService
     private readonly IMongoCollection<Product> _products;
     private readonly IStorageService _storageService;
     private readonly CreateProductRequestValidator _createValidator;
+    private readonly ISigner _signer;
 
-    public ProductService(CollectionsProvider collections, IStorageService storageService, CreateProductRequestValidator createValidator)
+    public ProductService(
+        CollectionsProvider collections,
+        IStorageService storageService,
+        CreateProductRequestValidator createValidator,
+        ISigner signer)
     {
         _products = collections.Products;
         _storageService = storageService;
         _createValidator = createValidator;
+        _signer = signer;
     }
 
     public async Task<ApiResponseBase> CreateAsync(CreateProductRequest request)
@@ -87,14 +93,11 @@ public class ProductService : IProductService
     public async Task<ApiResponseBase> GetAllAsync()
     {
         var products = await _products.Find(_ => true).ToListAsync();
-
         var dtos = products.Adapt<List<GetProductDTO>>();
-
         foreach (var img in dtos)
         {
-            img.ThumbnailUrl = await _storageService.GenerateFileUrlAsync(img.ThumbnailUrl);
+            img.ThumbnailUrl = _signer.GetSignedUrl(img.ThumbnailUrl);
         }
-
         return ApiResponse<List<GetProductDTO>>.Ok(dtos);
     }
 
@@ -105,14 +108,14 @@ public class ProductService : IProductService
         if (product == null)
             return ApiResponse.NotFound($"No se encontró el producto con id '{id}'");
 
-        string imageUrl = await _storageService.GenerateFileUrlAsync(product.ThumbnailKey);
+        string imageUrl = _signer.GetSignedUrl(product.ThumbnailKey);
 
         var productDTO = product.Adapt<GetProductDetailDTO>();
         productDTO.ThumbnailUrl = imageUrl;
 
         foreach (var img in productDTO.Images ?? [])
         {
-            img.ImageUrl = await _storageService.GenerateFileUrlAsync(img.ImageUrl);
+            img.ImageUrl = _signer.GetSignedUrl(img.ImageUrl);
         }
 
         return ApiResponse<GetProductDetailDTO>.Ok(productDTO);
@@ -125,14 +128,14 @@ public class ProductService : IProductService
         if (product == null)
             return ApiResponse.NotFound($"No se encontró el producto con slug '{slug}'");
 
-        string imageUrl = await _storageService.GenerateFileUrlAsync(product.ThumbnailKey);
+        string imageUrl = _signer.GetSignedUrl(product.ThumbnailKey);
 
         var productDTO = product.Adapt<GetProductDetailDTO>();
         productDTO.ThumbnailUrl = imageUrl;
 
         foreach (var img in productDTO.Images ?? [])
         {
-            img.ImageUrl = await _storageService.GenerateFileUrlAsync(img.ImageUrl);
+            img.ImageUrl = _signer.GetSignedUrl(img.ImageUrl);
         }
 
         return ApiResponse<GetProductDetailDTO>.Ok(productDTO);
