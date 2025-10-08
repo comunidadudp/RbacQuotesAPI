@@ -8,12 +8,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
 using RbacApi.Data;
+using RbacApi.Data.Interfaces;
+using RbacApi.Data.Repositories;
 using RbacApi.Handlers;
 using RbacApi.Infrastructure.Auth;
 using RbacApi.Infrastructure.Interfaces;
 using RbacApi.Infrastructure.Services;
 using RbacApi.Infrastructure.Storage.AWS;
 using RbacApi.Mapping;
+using RbacApi.Pagination;
 using RbacApi.Providers;
 using RbacApi.Services;
 using RbacApi.Services.Interfaces;
@@ -27,6 +30,8 @@ public static class IServiceCollectionExtensions
         services.Configure<JwtConfiguration>(configuration.GetSection(nameof(JwtConfiguration)));
         services.Configure<S3BucketOptions>(configuration.GetSection(nameof(S3BucketOptions)));
         services.Configure<CloudFrontConfig>(configuration.GetSection(nameof(CloudFrontConfig)));
+        services.Configure<PaginationOptions>(configuration.GetSection(nameof(PaginationOptions)));
+        
         return services;
     }
 
@@ -38,6 +43,13 @@ public static class IServiceCollectionExtensions
 
         services.AddSingleton(client.GetDatabase(mongoDbName));
         services.AddSingleton<CollectionsProvider>();
+
+        services.AddScoped<IMenuRepository, MenuRepository>();
+        services.AddScoped<IPermissionRepository, PermissionRepository>();
+        services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
 
         return services;
     }
@@ -97,7 +109,7 @@ public static class IServiceCollectionExtensions
 
         // Mapster DI
         services.AddMapster();
-        TypeAdapterConfig.GlobalSettings.Scan(typeof(ProductMappingConfig).Assembly);
+        TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly());
 
         return services;
     }
@@ -105,10 +117,10 @@ public static class IServiceCollectionExtensions
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IUserService, UserService>();
         services.AddScoped<IMenuService, MenuService>();
-        services.AddScoped<IProductService, ProductService>();
         services.AddSingleton<IPermissionService, PermissionService>();
+        services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<IUserService, UserService>();
         return services;
     }
 }
