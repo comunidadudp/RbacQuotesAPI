@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RbacApi.DTOs;
 using RbacApi.Filters;
@@ -45,6 +47,17 @@ public class AuthController(IAuthService authService) : ControllerBase
     public async Task<ApiResponseBase> Revoke([FromBody] RefreshRequest request)
     {
         var response = await _authService.RevokeRefreshTokenAsync(request);
+        HttpContext.Response.StatusCode = response.Status;
+        return response;
+    }
+
+    [HttpGet("user")]
+    [Audit("auth.userinfo")]
+    [Authorize]
+    public async Task<ApiResponseBase> UserInfo()
+    {
+        var username = User.FindFirst(ClaimTypes.Name)?.Value;
+        var response = await _authService.GetUserinfoAsync(username!);
         HttpContext.Response.StatusCode = response.Status;
         return response;
     }
