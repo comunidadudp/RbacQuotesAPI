@@ -80,12 +80,6 @@ public sealed class AuthService(
         // token revocado
         if (stored.Revoked)
         {
-            //  tokens activos
-            //var filterActive = Builders<RefreshToken>.Filter.Where(t => t.UserId == stored.UserId && !t.Revoked);
-            //var updateRevoke = Builders<RefreshToken>.Update
-            //    .Set(t => t.Revoked, true)
-            //    .Set(t => t.ReplacedByToken, $"revoked_due_to_reuse_{DateTime.UtcNow.Ticks}");
-
             _httpContextAccessor.AddAuditExtraItems([
                 new("entityId", $"{stored.Id}"),
                 new("entityType", "RefreshToken")
@@ -106,14 +100,12 @@ public sealed class AuthService(
                 }
             ]);
 
-            //await _collections.RefreshTokens.UpdateManyAsync(filterActive, updateRevoke);
             await _refreshTokenRepository.RevokeAllTokensAsync(stored.UserId);
 
             return ApiResponse.BadRequest("Token inválido (revocado)");
         }
 
         // token expiró
-
         if (stored.ExpiresAt <= DateTime.UtcNow)
         {
             stored.Revoked = true;
