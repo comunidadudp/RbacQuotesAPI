@@ -15,7 +15,6 @@ using RbacApi.Infrastructure.Auth;
 using RbacApi.Infrastructure.Interfaces;
 using RbacApi.Infrastructure.Services;
 using RbacApi.Infrastructure.Storage.AWS;
-using RbacApi.Mapping;
 using RbacApi.Pagination;
 using RbacApi.Providers;
 using RbacApi.Services;
@@ -118,7 +117,7 @@ public static class IServiceCollectionExtensions
     {
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IMenuService, MenuService>();
-        services.AddSingleton<IPermissionService, PermissionService>();
+        services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IUserService, UserService>();
         return services;
