@@ -1,22 +1,21 @@
-using MongoDB.Driver;
-using RbacApi.Data;
 using RbacApi.Data.Entities;
+using RbacApi.Data.Interfaces;
 using RbacApi.Services.Interfaces;
 
 namespace RbacApi.Services;
 
 public class PermissionService : IPermissionService
 {
-    private readonly CollectionsProvider _collections;
+    private readonly IPermissionRepository _permissionRepository;
 
-    public PermissionService(CollectionsProvider collections)
+    public PermissionService(IPermissionRepository permissionRepository)
     {
-        _collections = collections;
+        _permissionRepository = permissionRepository;
     }
 
     public async Task<IReadOnlyList<Permission>> GetAllAsync()
-        => await _collections.Permissions.Find(FilterDefinition<Permission>.Empty).ToListAsync();
+        => await _permissionRepository.GetAllAsync();
 
     public async Task<Permission?> GetByIdAsync(string id)
-        => await _collections.Permissions.Find(p => p.Code == id).FirstOrDefaultAsync();
+        => await _permissionRepository.GetByIdAsync(id);
 }

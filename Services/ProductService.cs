@@ -1,33 +1,39 @@
 using Mapster;
-using MongoDB.Driver;
-using RbacApi.Data;
+using Microsoft.Extensions.Options;
 using RbacApi.Data.Entities;
+using RbacApi.Data.Interfaces;
 using RbacApi.DTOs;
 using RbacApi.Infrastructure.Interfaces;
 using RbacApi.Infrastructure.Storage.Models;
 using RbacApi.Infrastructure.Validators;
+using RbacApi.Pagination;
+using RbacApi.QueryFilters;
 using RbacApi.Responses;
 using RbacApi.Services.Interfaces;
+using RbacApi.Specs;
 
 namespace RbacApi.Services;
 
 public class ProductService : IProductService
 {
-    private readonly IMongoCollection<Product> _products;
+    private readonly IProductRepository _productRepository;
     private readonly IStorageService _storageService;
     private readonly CreateProductRequestValidator _createValidator;
     private readonly ISigner _signer;
+    private readonly PaginationOptions _pagination;
 
     public ProductService(
-        CollectionsProvider collections,
+        IProductRepository productRepository,
         IStorageService storageService,
         CreateProductRequestValidator createValidator,
-        ISigner signer)
+        ISigner signer,
+        IOptions<PaginationOptions> options)
     {
-        _products = collections.Products;
+        _productRepository = productRepository;
         _storageService = storageService;
         _createValidator = createValidator;
         _signer = signer;
+        _pagination = options.Value;
     }
 
     public async Task<ApiResponseBase> CreateAsync(CreateProductRequest request)
@@ -40,12 +46,10 @@ public class ProductService : IProductService
 
         var slug = string.IsNullOrWhiteSpace(request.Slug) ? Slugify(request.Name!) : Slugify(request.Slug);
 
-        var slugFilter = Builders<Product>.Filter.Eq(p => p.Slug, slug);
-
-        if (await _products.Find(slugFilter).AnyAsync())
+        if (await _productRepository.GetBySlugAsync(slug) != null)
             return ApiResponse.BadRequest("El slug ya existe. Por favor, elige otro.");
 
-        var existing = await _products.Find(p => p.SKU == request.SKU).FirstOrDefaultAsync();
+        var existing = await _productRepository.GetBySKUAsync(request.SKU!);
         if (existing != null)
             return ApiResponse.BadRequest("El producto ya existe");
 
@@ -86,24 +90,60 @@ public class ProductService : IProductService
             await _storageService.CreateFileInStorageAsync(imgToUpload);
         }
 
-        await _products.InsertOneAsync(product);
+        await _productRepository.AddAsync(product);
         return ApiResponse<string>.Ok(product.Id);
     }
 
-    public async Task<ApiResponseBase> GetAllAsync()
+    public async Task<ApiResponseBase> GetAllAsync(ProductQueryFilter filter)
     {
-        var products = await _products.Find(_ => true).ToListAsync();
+        var spec = new ProductSpec();
+
+        if (!string.IsNullOrWhiteSpace(filter.Name))
+            spec.AndAlso(p => p.Name.ToLower().Contains(filter.Name.ToLower()));
+
+        if (!string.IsNullOrWhiteSpace(filter.Category))
+            spec.AndAlso(p => p.Category.ToLower() == filter.Category.ToLower());
+
+        if (!string.IsNullOrWhiteSpace(filter.Subcategory))
+            spec.AndAlso(p => p.Subcategory.ToLower() == filter.Subcategory.ToLower());
+
+        int count = await _productRepository.CountAsync(spec);
+
+        // filtrado de paginación
+        filter.PageIndex ??= _pagination.DefaultPageIndex;
+        filter.PageSize ??= _pagination.DefaultPageSize;
+        filter.PageSize = Math.Min(filter.PageSize.Value, _pagination.MaxPageSize);
+
+        spec.ApplyPaging(filter.PageSize.Value * (filter.PageIndex.Value - 1), filter.PageSize.Value);
+
+        switch (filter.Sort)
+        {
+            case SortOrder.Ascending:
+                spec.AddOrderBy(p => p.CreatedAt);
+                break;
+            case SortOrder.Descending:
+                spec.AddOrderByDescending(p => p.CreatedAt);
+                break;
+            default:
+                spec.AddOrderByDescending(p => p.CreatedAt);
+                break;
+        }
+
+        IEnumerable<Product> products = await _productRepository.GetAllAsync(spec);
         var dtos = products.Adapt<List<GetProductDTO>>();
         foreach (var img in dtos)
         {
             img.ThumbnailUrl = _signer.GetSignedUrl(img.ThumbnailUrl);
         }
-        return ApiResponse<List<GetProductDTO>>.Ok(dtos);
+
+        var result = PaginatedResult<GetProductDTO>.Create(dtos, filter, count);
+
+        return ApiResponse<PaginatedResult<GetProductDTO>>.Ok(result);
     }
 
     public async Task<ApiResponseBase> GetByIdAsync(string id)
     {
-        var product = await _products.Find(p => p.Id == id).FirstOrDefaultAsync();
+        var product = await _productRepository.GetByIdAsync(id);
 
         if (product == null)
             return ApiResponse.NotFound($"No se encontró el producto con id '{id}'");
@@ -123,7 +163,7 @@ public class ProductService : IProductService
 
     public async Task<ApiResponseBase> GetBySlugAsync(string slug)
     {
-        var product = await _products.Find(p => p.Slug == Slugify(slug)).FirstOrDefaultAsync();
+        var product = await _productRepository.GetBySlugAsync(slug);
 
         if (product == null)
             return ApiResponse.NotFound($"No se encontró el producto con slug '{slug}'");

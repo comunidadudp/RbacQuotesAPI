@@ -1,21 +1,21 @@
-using MongoDB.Driver;
-using RbacApi.Data;
 using RbacApi.Data.Entities;
+using RbacApi.Data.Interfaces;
 using RbacApi.DTOs;
 using RbacApi.Responses;
 using RbacApi.Services.Interfaces;
+using RbacApi.Specs;
 
 namespace RbacApi.Services;
 
 public class MenuService : IMenuService
 {
-    private readonly CollectionsProvider _collections;
     private readonly IUserService _userService;
+    private readonly IMenuRepository _menuRepository;
 
-    public MenuService(CollectionsProvider collections, IUserService userService)
+    public MenuService(IUserService userService, IMenuRepository menuRepository)
     {
-        _collections = collections;
         _userService = userService;
+        _menuRepository = menuRepository;
     }
 
     public async Task<ApiResponse<IEnumerable<MenuItemDTO>>> GetMenuForUserAsync(string userId)
@@ -26,7 +26,9 @@ public class MenuService : IMenuService
 
         var effective = (await _userService.GetEffectivePermissionsForUserAsync(user)).ToHashSet();
 
-        var roots = await _collections.MenuItems.Find(FilterDefinition<MenuItem>.Empty).SortBy(m => m.Order).ToListAsync();
+        var spec = new MenuItemSpec();
+        spec.AddOrderBy(m => m.Order);
+        var roots = await _menuRepository.GetAllAsync(spec);
 
         var visible = new List<MenuItemDTO>();
 

@@ -9,4 +9,5 @@ public interface IAuthService
     Task<ApiResponseBase> LoginAsync(LoginRequest request);
     Task<ApiResponseBase> RefreshAsync(RefreshRequest request);
     Task<ApiResponseBase> RevokeRefreshTokenAsync(RefreshRequest request);
+    Task<ApiResponseBase> GetUserinfoAsync(string username);
 }

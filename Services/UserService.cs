@@ -1,25 +1,25 @@
-using MongoDB.Driver;
-using RbacApi.Data;
 using RbacApi.Data.Entities;
+using RbacApi.Data.Interfaces;
 using RbacApi.Services.Interfaces;
 
 namespace RbacApi.Services;
 
-public class UserService(CollectionsProvider collections) : IUserService
+public class UserService(
+    IUserRepository userRepository, 
+    IRoleRepository roleRepository) : IUserService
 {
-    private readonly CollectionsProvider _collections = collections;
+    private readonly IUserRepository _userRepository = userRepository;
+    private readonly IRoleRepository _roleRepository = roleRepository;
 
     public async Task<User?> GetByIdAsync(string id)
-    {
-        return await _collections.Users.Find(u => u.Id == id).FirstOrDefaultAsync();
-    }
+        => await _userRepository.GetByIdAsync(id);
 
     public async Task<IEnumerable<string>> GetEffectivePermissionsForUserAsync(User user)
     {
         var permissions = new HashSet<string>(user.Permissions ?? []);
 
         // 1. Permisos del rol
-        var role = await _collections.Roles.Find(r => r.Id == user.RoleId).FirstOrDefaultAsync();
+        var role = await _roleRepository.GetByIdAsync(user.RoleId);
         var rolePerms = role?.Permissions ?? [];
 
         // 2. Permisos propios

@@ -1,8 +1,8 @@
 using System.Security.Cryptography;
+using Mapster;
 using Microsoft.Extensions.Options;
-using MongoDB.Driver;
-using RbacApi.Data;
 using RbacApi.Data.Entities;
+using RbacApi.Data.Interfaces;
 using RbacApi.DTOs;
 using RbacApi.Extensions;
 using RbacApi.Infrastructure.Auth;
@@ -14,7 +14,8 @@ using RbacApi.Services.Interfaces;
 namespace RbacApi.Services;
 
 public sealed class AuthService(
-    CollectionsProvider collections,
+    IUserRepository userRepository,
+    IRefreshTokenRepository refreshTokenRepository,
     ITokenService tokenService,
     IOptions<JwtConfiguration> options,
     IUserService userService,
@@ -24,7 +25,8 @@ public sealed class AuthService(
     IHttpContextAccessor httpContextAccessor) : IAuthService
 
 {
-    private readonly CollectionsProvider _collections = collections;
+    private readonly IUserRepository _userRepository = userRepository;
+    private readonly IRefreshTokenRepository _refreshTokenRepository = refreshTokenRepository;
     private readonly ITokenService _tokenService = tokenService;
     private readonly JwtConfiguration _jwtConfig = options.Value;
     private readonly IUserService _userService = userService;
@@ -33,7 +35,17 @@ public sealed class AuthService(
     private readonly RefreshRequestValidator _refreshValidator = refreshValidator;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
+    public async Task<ApiResponseBase> GetUserinfoAsync(string username)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+            return ApiResponse.BadRequest("El nombre de usuario es obligatorio");
 
+        var user = await _userRepository.GetByEmailAsync(username);
+        if (user == null)
+            return ApiResponse.BadRequest("Usuario no encontrado");
+
+        return ApiResponse<GetUserInfoDTO>.Ok(user.Adapt<GetUserInfoDTO>());
+    }
 
     public async Task<ApiResponseBase> LoginAsync(LoginRequest request)
     {
@@ -43,7 +55,7 @@ public sealed class AuthService(
             return ApiResponse.BadRequest("Error en los parámetros de entrada",
                 [.. validation.Errors.Select(f => new Error(f.PropertyName, f.ErrorMessage))]);
 
-        var user = await _collections.Users.Find(u => u.Email == request.Username).FirstOrDefaultAsync();
+        var user = await _userRepository.GetByEmailAsync(request.Username!);
         if (user == null)
             return ApiResponse.BadRequest("Usuario y/o contraseña incorrectos");
 
@@ -61,7 +73,7 @@ public sealed class AuthService(
             return ApiResponse.BadRequest("Error en los parámetros de entrada",
                 [.. validation.Errors.Select(f => new Error(f.PropertyName, f.ErrorMessage))]);
 
-        var stored = await _collections.RefreshTokens.Find(t => t.Token == request.RefreshToken).FirstOrDefaultAsync();
+        var stored = await _refreshTokenRepository.GetRefreshTokenAsync(request.RefreshToken!);
         if (stored == null)
             return ApiResponse.BadRequest("Token inválido (no existe)");
 
@@ -69,10 +81,10 @@ public sealed class AuthService(
         if (stored.Revoked)
         {
             //  tokens activos
-            var filterActive = Builders<RefreshToken>.Filter.Where(t => t.UserId == stored.UserId && !t.Revoked);
-            var updateRevoke = Builders<RefreshToken>.Update
-                .Set(t => t.Revoked, true)
-                .Set(t => t.ReplacedByToken, $"revoked_due_to_reuse_{DateTime.UtcNow.Ticks}");
+            //var filterActive = Builders<RefreshToken>.Filter.Where(t => t.UserId == stored.UserId && !t.Revoked);
+            //var updateRevoke = Builders<RefreshToken>.Update
+            //    .Set(t => t.Revoked, true)
+            //    .Set(t => t.ReplacedByToken, $"revoked_due_to_reuse_{DateTime.UtcNow.Ticks}");
 
             _httpContextAccessor.AddAuditExtraItems([
                 new("entityId", $"{stored.Id}"),
@@ -94,7 +106,8 @@ public sealed class AuthService(
                 }
             ]);
 
-            await _collections.RefreshTokens.UpdateManyAsync(filterActive, updateRevoke);
+            //await _collections.RefreshTokens.UpdateManyAsync(filterActive, updateRevoke);
+            await _refreshTokenRepository.RevokeAllTokensAsync(stored.UserId);
 
             return ApiResponse.BadRequest("Token inválido (revocado)");
         }
@@ -103,29 +116,24 @@ public sealed class AuthService(
 
         if (stored.ExpiresAt <= DateTime.UtcNow)
         {
-            var updateExp = Builders<RefreshToken>.Update
-                .Set(t => t.Revoked, true)
-                .Set(t => t.ReplacedByToken, $"revoked_due_to_expiration_{DateTime.UtcNow.Ticks}");
+            stored.Revoked = true;
+            stored.ReplacedByToken = $"revoked_due_to_expiration_{DateTime.UtcNow.Ticks}";
 
-            await _collections.RefreshTokens.UpdateOneAsync(t => t.Id == stored.Id, updateExp);
+            await _refreshTokenRepository.UpdateAsync(stored);
             return ApiResponse.Unauthorized("Token inválido (expiró)");
         }
 
-        var user = await _collections.Users.Find(u => u.Id == stored.UserId).FirstOrDefaultAsync();
+        var user = await _userRepository.GetByIdAsync(stored.UserId);
         if (user == null)
             return ApiResponse.BadRequest("Token inválido (usuario no encontrado)");
 
         var newRefresh = GenerateRefreshToken(user.Id);
-        await _collections.RefreshTokens.InsertOneAsync(newRefresh);
+        await _refreshTokenRepository.AddRefreshTokenAsync(newRefresh);
 
         stored.Revoked = true;
         stored.ReplacedByToken = newRefresh.Token;
 
-        var updateStored = Builders<RefreshToken>.Update
-                .Set(t => t.Revoked, true)
-                .Set(t => t.ReplacedByToken, newRefresh.Token);
-
-        await _collections.RefreshTokens.UpdateOneAsync(t => t.Id == stored.Id, updateStored);
+        await _refreshTokenRepository.UpdateAsync(stored);
 
         var permissions = await _userService.GetEffectivePermissionsForUserAsync(user);
         var access = _tokenService.GenerateAccessToken(user.Id, user.Email, user.RoleId.ToString(), permissions, _jwtConfig.AccessTokenMinutes);
@@ -150,7 +158,7 @@ public sealed class AuthService(
             return ApiResponse.BadRequest("Error en los parámetros de entrada",
                 [.. validation.Errors.Select(f => new Error(f.PropertyName, f.ErrorMessage))]);
 
-        var existing = await _collections.Users.Find(u => u.Email == request.Email).FirstOrDefaultAsync();
+        var existing = await _userRepository.GetByEmailAsync(request.Email!);
         if (existing != null)
             return ApiResponse.BadRequest("El usuario ya existe");
 
@@ -166,7 +174,7 @@ public sealed class AuthService(
             Active = true
         };
 
-        await _collections.Users.InsertOneAsync(user);
+        await _userRepository.AddUserAsync(user);
 
         return ApiResponse<AuthResponseDTO?>.Ok(await GenerateAuthResponseForUser(user));
     }
@@ -179,15 +187,14 @@ public sealed class AuthService(
             return ApiResponse.BadRequest("Error en los parámetros de entrada",
                 [.. validation.Errors.Select(f => new Error(f.PropertyName, f.ErrorMessage))]);
 
-        var stored = await _collections.RefreshTokens.Find(t => t.Token == request.RefreshToken && !t.Revoked).FirstOrDefaultAsync();
+        var stored = await _refreshTokenRepository.GetRefreshTokenAsync(t => t.Token == request.RefreshToken && !t.Revoked);
         if (stored == null)
             return ApiResponse.BadRequest("Token inválido (no existe)");
 
-        var updateStored = Builders<RefreshToken>.Update
-                .Set(t => t.Revoked, true)
-                .Set(t => t.ReplacedByToken, $"revoked_ok_{DateTime.UtcNow.Ticks}");
+        stored.Revoked = true;
+        stored.ReplacedByToken = $"revoked_due_to_expiration_{DateTime.UtcNow.Ticks}";
 
-        await _collections.RefreshTokens.UpdateOneAsync(t => t.Id == stored.Id, updateStored);
+        await _refreshTokenRepository.UpdateAsync(stored);
 
         return ApiResponse<bool>.Ok(true);
     }
@@ -201,7 +208,7 @@ public sealed class AuthService(
         var access = _tokenService.GenerateAccessToken(user.Id, user.Email, user.RoleId.ToString(), permissions);
         var refresh = GenerateRefreshToken(user.Id);
 
-        await _collections.RefreshTokens.InsertOneAsync(refresh);
+        await _refreshTokenRepository.AddRefreshTokenAsync(refresh);
 
         return new AuthResponseDTO
         (
