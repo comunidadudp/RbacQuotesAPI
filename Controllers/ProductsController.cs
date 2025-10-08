@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RbacApi.DTOs;
+using RbacApi.QueryFilters;
 using RbacApi.Responses;
 using RbacApi.Services.Interfaces;
 
@@ -46,9 +47,9 @@ namespace RbacApi.Controllers
 
         [HttpGet]
         [Authorize(Policy = "products:manage")]
-        public async Task<ApiResponseBase> GetAll()
+        public async Task<ApiResponseBase> GetAll([FromQuery] ProductQueryFilter filter)
         {
-            var response = await _productService.GetAllAsync();
+            var response = await _productService.GetAllAsync(filter);
             HttpContext.Response.StatusCode = response.Status;
             return response;
         }
